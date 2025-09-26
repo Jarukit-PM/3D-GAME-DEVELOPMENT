@@ -1,0 +1,174 @@
+# Build directories
+build/
+build-*/
+out/
+cmake-build-*/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled Object files
+*.o
+*.obj
+*.lo
+*.slo
+*.ko
+*.elf
+
+# Executables
+*.exe
+*.out
+*.app
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+*.dll
+*.so
+*.dylib
+
+# Debug files
+*.dmp
+*.stackdump
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Visual Studio files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Xcode files
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Qt files
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+
+# Conan
+conandata.yml
+conanfile.txt
+conaninfo.txt
+conanbuildinfo.*
+
+# Package managers
+vcpkg_installed/
+packages/
+
+# Dependencies (if using git submodules, uncomment the next line)
+# _deps/
+
+# Shader cache and compiled shaders
+*.spv
+*.cache
+
+# Asset files (uncomment if you don't want to track large assets)
+# *.png
+# *.jpg
+# *.jpeg
+# *.bmp
+# *.tga
+# *.dds
+# *.obj
+# *.fbx
+# *.dae
+# *.3ds
+# *.blend
+# *.max
+# *.ma
+# *.mb
+
+# Audio files (uncomment if you don't want to track audio assets)
+# *.wav
+# *.mp3
+# *.ogg
+# *.flac
+
+# Video files (uncomment if you don't want to track video assets)
+# *.mp4
+# *.avi
+# *.mov
+# *.mkv
+
+# Documentation build
+docs/_build/
+docs/build/
+
+# Python cache (if using Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Node.js (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Profiling data
+*.prof
+*.gprof
+
+# Memory dumps
+core
+core.*
