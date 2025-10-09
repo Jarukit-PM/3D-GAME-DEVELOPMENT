@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# MyOpenGLBook Build Script for macOS M1 Pro
+# 3D Game Development Build Script for macOS M1 Pro
 
 set -e  # Exit on any error
 
-echo "🎮 MyOpenGLBook Build Script"
-echo "=============================="
+echo "🎮 3D Game Development Build Script"
+echo "===================================="
 
 # Check if we're in the right directory
 if [ ! -f "CMakeLists.txt" ]; then
@@ -30,16 +30,16 @@ echo ""
 echo "✅ Build completed successfully!"
 echo ""
 echo "🚀 Available executables:"
-echo "  • Hello Window:  ./1.getting_started/1.1_hello_window/1.1_hello_window"
-echo "  • Hello Triangle: ./1.getting_started/1.2_hello_triangle/1.2_hello_triangle"
-echo "  • Colors:        ./2.lighting/2.1_colors/2.1_colors"
+echo "  • Kinetic Sculpture Animation: ./Assignment_2:3D_kinetic_sculpture_animation/Assignment_2_3D_kinetic_sculpture_animation"
 echo ""
-echo "💡 To run an example:"
-echo "  cd build"
-echo "  ./1.getting_started/1.1_hello_window/1.1_hello_window"
-echo "  # or"
-echo "  ./1.getting_started/1.2_hello_triangle/1.2_hello_triangle"
-echo "  # or"
-echo "  ./2.lighting/2.1_colors/2.1_colors"
+echo "💡 To run the kinetic sculpture:"
+echo "  cd build/Assignment_2:3D_kinetic_sculpture_animation"
+echo "  ./Assignment_2_3D_kinetic_sculpture_animation"
+echo ""
+echo "🎮 Controls:"
+echo "  • WASD: Move camera"
+echo "  • Mouse: Look around"
+echo "  • Scroll: Zoom in/out"
+echo "  • ESC: Exit application"
 echo ""
 echo "🎯 Press ESC in the window to exit"

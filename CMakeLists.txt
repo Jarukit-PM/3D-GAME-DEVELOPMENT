@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(MyOpenGLBook)
+project(3D_Game_Development)
 
 # Set policy version to handle older dependencies
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -65,5 +65,5 @@ endif()
 # Add common library
 add_subdirectory(common)
 
-# Add projects
+# Add Assignment 2: 3D Kinetic Sculpture Animation
 add_subdirectory("Assignment_2:3D_kinetic_sculpture_animation")

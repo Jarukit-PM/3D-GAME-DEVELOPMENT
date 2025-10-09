@@ -1,194 +1,156 @@
-# MyOpenGLBook
+# 3D Game Development - Assignment 2: Kinetic Sculpture Animation
 
-A C++ OpenGL learning project structured like LearnOpenGL, designed for macOS M1 Pro with CMake.
+A comprehensive 3D kinetic sculpture animation project built with OpenGL, featuring dynamic movement patterns, interactive controls, and parametric geometric decorations.
 
-## Project Structure
+## 🎨 Project Overview
+
+This project implements a sophisticated 3D kinetic sculpture animation that combines:
+- **19 Animated Elements**: Central rotating cube, pendulum system, orbital mechanics, and floating elements
+- **3 Parametric Patterns**: External geometric decorations with complex orbital motion
+- **Interactive Controls**: Wind simulation, user interaction, and real-time parameter adjustment
+- **Advanced Rendering**: Phong lighting, depth testing, and efficient OpenGL rendering
+
+## 📁 Project Structure
 
 ```
-MyOpenGLBook/
-├── CMakeLists.txt                 # Root CMake configuration
-├── common/                        # Common library
+3D-GAME-DEVELOPMENT/
+├── Assignment_2:3D_kinetic_sculpture_animation/    # Main assignment project
+│   ├── README.md                                   # Detailed project documentation
+│   ├── main.cpp                                    # Main application code
+│   ├── CMakeLists.txt                              # Build configuration
+│   ├── images/                                     # Screenshots directory
+│   ├── video/                                      # Video demonstration
+│   └── resources/                                  # Assets and shaders
+│       ├── vs/kinetic_sculpture.vs                 # Vertex shader
+│       ├── fs/kinetic_sculpture.fs                 # Fragment shader
+│       └── parametric_pattern_2.dxf/              # 3D model files
+│           ├── scene.gltf                          # GLTF model
+│           ├── f.bin                               # Binary data
+│           └── license.txt                        # Model license
+├── common/                                         # Shared utilities
 │   ├── CMakeLists.txt
-│   ├── include/
-│   │   └── common.hpp            # Common utilities and classes
-│   └── src/
-│       └── common.cpp            # Common implementation
-├── 1.getting_started/            # Chapter 1: Getting Started
-│   ├── CMakeLists.txt
-│   └── 1.1_hello_window/         # Lesson 1.1: Hello Window
-│       ├── CMakeLists.txt
-│       ├── main.cpp
-│       ├── shaders/              # Shader files
-│       └── resources/            # Resource files
-└── 2.lighting/                   # Chapter 2: Lighting
-    ├── CMakeLists.txt
-    └── 2.1_colors/               # Lesson 2.1: Colors
-        ├── CMakeLists.txt
-        ├── main.cpp
-        ├── shaders/
-        └── resources/
+│   ├── include/common.hpp
+│   └── src/common.cpp
+├── CMakeLists.txt                                  # Root build configuration
+└── build.sh                                        # Build script
 ```
 
-## Dependencies
+## 🚀 Quick Start
 
-This project uses CMake's FetchContent to automatically download:
-- **GLFW 3.3.8** - Window management
-- **GLAD v0.1.36** - OpenGL function loading
-- **GLM 0.9.9.8** - Mathematics library
-- **stb** - Image loading utilities
+### Prerequisites
+- **macOS M1 Pro** (optimized for ARM64)
+- **Xcode Command Line Tools**
+- **CMake 3.16+**
+- **Git**
 
-## Prerequisites
-
-### macOS M1 Pro Requirements
-
-1. **Xcode Command Line Tools**:
-   ```bash
-   xcode-select --install
-   ```
-
-2. **CMake** (version 3.16 or higher):
-   ```bash
-   # Using Homebrew
-   brew install cmake
-   
-   # Or using MacPorts
-   sudo port install cmake
-   ```
-
-3. **Git** (for FetchContent):
-   ```bash
-   # Usually pre-installed, but if needed:
-   brew install git
-   ```
-
-## Building the Project
-
-### Quick Build (Recommended)
+### Build and Run
 ```bash
-# From the project root directory
-./build.sh
-```
-
-### Manual Build
-
-#### 1. Clone and Navigate
-```bash
+# Clone the repository
 cd /Users/jarukit/Documents/GitHub/3D-GAME-DEVELOPMENT
+
+# Build the project
+./build.sh
+
+# Run the kinetic sculpture animation
+cd build/Assignment_2:3D_kinetic_sculpture_animation
+./Assignment_2_3D_kinetic_sculpture_animation
 ```
 
-#### 2. Create Build Directory
-```bash
-mkdir build
-cd build
-```
+## 🎮 Controls
 
-#### 3. Configure with CMake
-```bash
-# For Debug build (recommended for development)
-cmake -DCMAKE_BUILD_TYPE=Debug ..
+- **WASD**: Move camera
+- **Mouse**: Look around
+- **Scroll**: Zoom in/out
+- **ESC**: Exit application
 
-# For Release build (optimized)
-cmake -DCMAKE_BUILD_TYPE=Release ..
-```
+## 🎯 Features
 
-#### 4. Build the Project
-```bash
-# Build all targets
-make -j$(sysctl -n hw.ncpu)
+### Kinetic Sculpture Elements
+- **Central Rotating Element**: Complex multi-axis rotation
+- **Pendulum System**: Four synchronized pendulums with realistic physics
+- **Orbital Mechanics**: Six elements with dynamic radius variation
+- **Floating Elements**: Eight small cubes with complex 3D patterns
+- **Parametric Patterns**: Three geometric decorations orbiting the sculpture
 
-# Or build specific target
-make hello_window
-make colors
-```
+### Interactive Features
+- **Wind Simulation**: Dynamic wind effects affecting all elements
+- **User Control**: Real-time parameter adjustment
+- **Environmental Response**: Elements react to wind strength and user input
 
-## Running the Examples
+### Technical Features
+- **OpenGL 3.3 Core Profile**: Modern graphics programming
+- **Phong Lighting**: Ambient, diffuse, and specular lighting
+- **GLTF Model Loading**: Custom loader for 3D models
+- **Frame-rate Independent**: Smooth animation regardless of FPS
 
-### Hello Window (Lesson 1.1)
-```bash
-# From the build directory
-./1.getting_started/1.1_hello_window/1.1_hello_window
-```
+## 📊 Technical Specifications
 
-### Colors (Lesson 2.1)
-```bash
-# From the build directory
-./2.lighting/2.1_colors/2.1_colors
-```
+- **Language**: C++17
+- **Graphics API**: OpenGL 3.3 Core Profile
+- **Window Management**: GLFW 3.3.8
+- **Mathematics**: GLM 0.9.9.8
+- **Model Format**: GLTF 2.0
+- **Rendering**: Line-based parametric patterns + Triangle-based cubes
 
-## Controls
+## 🎨 Model Credits
 
-- **ESC**: Close the window and exit the program
+- **Parametric Pattern**: "Parametric_pattern_2.dxf" by STEELWORX
+  - Source: https://www.fab.com/listings/84a8bd54-e2a1-4d3e-aa83-95ec46e13daa
+  - License: Creative Commons Attribution (CC BY 4.0)
+  - Used as decorative geometric patterns with orbital animation
 
-## Features
+## 📚 Documentation
 
-### Common Library
-The `common` library provides:
-- **Window Management**: Easy GLFW window creation and management
-- **Shader Utilities**: Shader loading, compilation, and uniform setting
-- **OpenGL Info**: Automatic OpenGL information display
-- **File Utilities**: File reading functions
+For detailed information about the project, including:
+- Complete feature descriptions
+- Technical implementation details
+- Screenshots and video demonstration
+- Model integration techniques
+- Future enhancement plans
 
-### macOS M1 Pro Optimizations
-- Configured for ARM64 architecture
-- macOS-specific framework linking (Cocoa, IOKit, CoreVideo)
-- OpenGL Core Profile 3.3
-- Forward compatibility enabled
+Please see the [Assignment 2 README](Assignment_2:3D_kinetic_sculpture_animation/README.md)
 
-## Development Workflow
+## 🛠️ Development
 
-1. **Add New Lessons**:
-   - Create new lesson directory under appropriate chapter
-   - Add `CMakeLists.txt` for the lesson
-   - Create `main.cpp` and link with `common` library
-   - Add shader and resource directories
+### Adding New Features
+1. Modify `main.cpp` for new animation patterns
+2. Update shaders in `resources/vs/` and `resources/fs/`
+3. Add new models to `resources/` directory
+4. Update `CMakeLists.txt` if needed
 
-2. **Add New Chapters**:
-   - Create chapter directory
-   - Add `CMakeLists.txt` with `add_subdirectory()` calls
-   - Update root `CMakeLists.txt` to include new chapter
+### Build System
+- Uses CMake with FetchContent for automatic dependency management
+- Optimized for macOS M1 Pro with ARM64 architecture
+- Supports both Debug and Release builds
 
-3. **Using Shaders**:
-   - Place shader files in lesson's `shaders/` directory
-   - Use `SHADER_ROOT` macro in code for shader paths
-   - Example: `Common::Shader shader(SHADER_ROOT "/vertex.glsl", SHADER_ROOT "/fragment.glsl");`
+## 🎓 Educational Value
 
-4. **Using Resources**:
-   - Place resource files in lesson's `resources/` directory
-   - Use `RESOURCE_ROOT` macro in code for resource paths
+This project demonstrates:
+- **3D Graphics Programming**: OpenGL rendering pipeline
+- **Mathematical Concepts**: Vector operations, matrix transformations, trigonometry
+- **Animation Systems**: Frame-rate independent timing, interpolation
+- **Model Integration**: GLTF loading, mesh processing, buffer management
+- **Interactive Design**: User input handling, real-time parameter adjustment
 
-## Troubleshooting
+## 📈 Performance
 
-### Common Issues
+- **Rendering**: 19 animated elements + 3 parametric patterns
+- **Vertex Count**: ~7,500 vertices for parametric patterns
+- **Frame Rate**: 60+ FPS on macOS M1 Pro
+- **Memory Usage**: Optimized buffer management with VAO/VBO/EBO
 
-1. **CMake not found**:
-   ```bash
-   brew install cmake
-   ```
+## 🔮 Future Enhancements
 
-2. **Build errors on M1**:
-   - Ensure you're using ARM64 version of CMake
-   - Check that Xcode Command Line Tools are installed
+- Enhanced GLTF parser with full 2.0 specification support
+- Texture mapping for parametric patterns
+- Particle effects synchronized with animations
+- Sound integration for wind effects
+- VR support for immersive experience
 
-3. **OpenGL context creation failed**:
-   - Make sure you're running on macOS 10.15 or later
-   - Check that your graphics drivers are up to date
+---
 
-4. **Dependencies not downloading**:
-   - Check internet connection
-   - Ensure Git is installed and accessible
+*Created for Assignment 2: 3D Kinetic Sculpture Animation*  
+*Course: Computer Graphics and Game Development*  
+*Submission Date: October 2024*
 
-### Clean Build
-If you encounter issues, try a clean build:
-```bash
-rm -rf build
-mkdir build
-cd build
-cmake ..
-make -j$(sysctl -n hw.ncpu)
-```
-
-## Next Steps
-
-This project structure is designed to grow with your OpenGL learning journey. Each lesson builds upon the previous ones, and the common library provides a solid foundation for more complex graphics programming.
-
-Happy coding! 🎮
+Happy coding! 🎮✨
