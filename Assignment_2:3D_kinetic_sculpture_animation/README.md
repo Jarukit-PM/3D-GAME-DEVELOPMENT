@@ -37,16 +37,20 @@ This project implements a dynamic 3D kinetic sculpture animation using OpenGL an
 *Main view of the kinetic sculpture showing all animated elements including parametric patterns*
 ## Video Demonstration
 
-[![Video Thumbnail](images/screenshot1.png)](video/kinetic_sculpture_demo.mov)
-*Click to watch the 20-second animation demonstration*
+### 🎥 Assignment Submission Video
+**File**: `video/kinetic_sculpture_demo.mov` (20 seconds)
 
-**Video Description**: This 20-second video showcases the complete kinetic sculpture animation featuring:
-- Central rotating elements with complex multi-axis movement
-- Four synchronized pendulum elements responding to wind simulation
-- Six orbital elements with dynamic radius variation
-- Eight floating elements with complex 3D patterns
-- Three parametric geometric patterns orbiting around the sculpture
-- Interactive wind effects and user controls
+[🎬 Watch Demo Video](video/kinetic_sculpture_demo.mov)
+*Click to view the 20-second kinetic sculpture animation*
+
+### Video Content
+This demonstration video showcases:
+- **Central rotating element** with complex multi-axis movement
+- **Four synchronized pendulum elements** responding to wind simulation
+- **Six orbital elements** with dynamic radius variation
+- **Eight floating elements** with complex 3D patterns
+- **Three parametric geometric patterns** orbiting around the sculpture
+- **Interactive wind effects** and user controls
 
 ## Technical Implementation
 
@@ -177,32 +181,6 @@ README.md              # This file
 - **Floating Elements**: 1.5 Hz with complex 3D movement patterns
 - **Wind Effects**: Variable strength (0.0 - 2.0) affecting all elements
 
-## Recommended 3D Models for Kinetic Sculpture
-
-### Free Model Resources
-- **Sketchfab**: Search for "kinetic sculpture", "mobile art", or "mechanical art"
-- **Thingiverse**: Look for 3D printable kinetic sculptures and mechanical models
-- **TurboSquid**: Professional models with various licensing options
-- **CGTrader**: Community-driven marketplace with free and paid models
-
-### Specific Model Suggestions
-1. **Alexander Calder-inspired Mobiles**: Simple geometric shapes perfect for kinetic animation
-2. **Mechanical Gears and Cogs**: Industrial-style elements for complex movement
-3. **Abstract Geometric Shapes**: Modern minimalist designs
-4. **Nature-inspired Elements**: Leaves, flowers, or organic shapes
-5. **Architectural Elements**: Columns, beams, or structural components
-
-### Model Format Compatibility
-- **OBJ**: Universal format, easy to load
-- **FBX**: Supports animations and materials
-- **GLTF/GLB**: Modern web-friendly format
-- **STL**: 3D printing format, good for geometric shapes
-
-### Integration Tips
-- Start with simple geometric shapes (cubes, spheres, cylinders)
-- Ensure models have proper UV mapping for textures
-- Consider polygon count for performance
-- Test models in your OpenGL environment before final integration
 
 ## Model Usage and Integration
 
