@@ -8,6 +8,8 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <map>
+#include <string>
 
 #include "common.hpp"
 
@@ -30,6 +32,140 @@ float rotationSpeed = 1.0f;
 float pendulumAmplitude = 30.0f;
 float pendulumFrequency = 2.0f;
 
+// Advanced kinetic sculpture parameters
+float windStrength = 0.0f;
+float userInteraction = 0.0f;
+bool isWindActive = false;
+bool isUserControlled = false;
+
+// Sculpture components
+struct KineticElement {
+    glm::vec3 position;
+    glm::vec3 rotation;
+    glm::vec3 scale;
+    float phase;
+    float frequency;
+    float amplitude;
+    glm::vec3 axis;
+};
+
+std::vector<KineticElement> sculptureElements;
+
+// GLTF Model structure
+struct GLTFModel {
+    unsigned int VAO, VBO, EBO;
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+    glm::vec3 minBounds;
+    glm::vec3 maxBounds;
+    bool loaded;
+};
+
+GLTFModel parametricPattern;
+
+// Function to load GLTF model (simplified version)
+bool loadGLTFModel(const std::string& gltfPath, GLTFModel& model)
+{
+    std::ifstream file(gltfPath);
+    if (!file.is_open()) {
+        std::cout << "Failed to open GLTF file: " << gltfPath << std::endl;
+        return false;
+    }
+    
+    std::string jsonContent((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+    file.close();
+    
+    // Simple JSON parsing for GLTF (this is a basic implementation)
+    // In a real project, you'd use a proper JSON library like nlohmann/json
+    
+    // For now, we'll create a simple parametric pattern manually
+    // This creates a geometric pattern similar to the GLTF model
+    
+    model.vertices.clear();
+    model.indices.clear();
+    
+    // Create a parametric pattern with lines
+    int segments = 50;
+    float width = 2.0f;
+    float height = 1.0f;
+    
+    for (int i = 0; i < segments; ++i) {
+        for (int j = 0; j < segments; ++j) {
+            float x = (float)i / segments * width - width/2.0f;
+            float y = (float)j / segments * height - height/2.0f;
+            float z = 0.0f;
+            
+            // Create parametric pattern
+            float pattern = sin(x * 3.14159f) * cos(y * 3.14159f) * 0.1f;
+            z += pattern;
+            
+            // Add vertex
+            model.vertices.push_back(x);
+            model.vertices.push_back(y);
+            model.vertices.push_back(z);
+            
+            // Add bright cyan color for pattern visibility
+            model.vertices.push_back(0.0f);
+            model.vertices.push_back(1.0f);
+            model.vertices.push_back(1.0f);
+        }
+    }
+    
+    // Create indices for lines
+    for (int i = 0; i < segments - 1; ++i) {
+        for (int j = 0; j < segments - 1; ++j) {
+            int current = i * segments + j;
+            int right = current + 1;
+            int down = (i + 1) * segments + j;
+            int diagonal = down + 1;
+            
+            // Create line pattern
+            if ((i + j) % 2 == 0) {
+                model.indices.push_back(current);
+                model.indices.push_back(diagonal);
+            } else {
+                model.indices.push_back(right);
+                model.indices.push_back(down);
+            }
+        }
+    }
+    
+    // Set bounds
+    model.minBounds = glm::vec3(-width/2.0f, -height/2.0f, -0.1f);
+    model.maxBounds = glm::vec3(width/2.0f, height/2.0f, 0.1f);
+    
+    // Create OpenGL buffers
+    glGenVertexArrays(1, &model.VAO);
+    glGenBuffers(1, &model.VBO);
+    glGenBuffers(1, &model.EBO);
+    
+    glBindVertexArray(model.VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, model.VBO);
+    glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(float), 
+                 model.vertices.data(), GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), 
+                 model.indices.data(), GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    glBindVertexArray(0);
+    
+    model.loaded = true;
+    std::cout << "Parametric pattern model loaded successfully with " << model.vertices.size()/6 
+              << " vertices and " << model.indices.size() << " indices" << std::endl;
+    
+    return true;
+}
+
 // Function to load shader from file
 std::string loadShaderFromFile(const std::string& filePath)
 {
@@ -51,6 +187,77 @@ std::string loadShaderFromFile(const std::string& filePath)
     }
 }
 
+// Initialize kinetic sculpture elements
+void initializeKineticSculpture()
+{
+    sculptureElements.clear();
+    
+    // Central rotating element
+    KineticElement center;
+    center.position = glm::vec3(0.0f, 0.0f, 0.0f);
+    center.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    center.scale = glm::vec3(1.0f, 1.0f, 1.0f);
+    center.phase = 0.0f;
+    center.frequency = 1.0f;
+    center.amplitude = 0.0f;
+    center.axis = glm::vec3(0.5f, 1.0f, 0.0f);
+    sculptureElements.push_back(center);
+    
+    // Pendulum elements
+    for (int i = 0; i < 4; ++i) {
+        KineticElement pendulum;
+        float angle = i * 90.0f;
+        pendulum.position = glm::vec3(
+            cos(glm::radians(angle)) * 2.0f,
+            0.0f,
+            sin(glm::radians(angle)) * 2.0f
+        );
+        pendulum.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        pendulum.scale = glm::vec3(0.5f, 0.5f, 0.5f);
+        pendulum.phase = i * 0.5f;
+        pendulum.frequency = 2.0f;
+        pendulum.amplitude = 30.0f;
+        pendulum.axis = glm::vec3(1.0f, 0.0f, 0.0f);
+        sculptureElements.push_back(pendulum);
+    }
+    
+    // Orbiting elements
+    for (int i = 0; i < 6; ++i) {
+        KineticElement orbit;
+        float angle = i * 60.0f;
+        orbit.position = glm::vec3(
+            cos(glm::radians(angle)) * 3.0f,
+            0.0f,
+            sin(glm::radians(angle)) * 3.0f
+        );
+        orbit.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        orbit.scale = glm::vec3(0.3f, 0.3f, 0.3f);
+        orbit.phase = i * 0.3f;
+        orbit.frequency = 0.3f;
+        orbit.amplitude = 0.5f;
+        orbit.axis = glm::vec3(0.0f, 1.0f, 0.0f);
+        sculptureElements.push_back(orbit);
+    }
+    
+    // Floating elements
+    for (int i = 0; i < 8; ++i) {
+        KineticElement floating;
+        float angle = i * 45.0f;
+        floating.position = glm::vec3(
+            cos(glm::radians(angle)) * 1.5f,
+            sin(glm::radians(angle * 2)) * 0.5f,
+            sin(glm::radians(angle)) * 1.5f
+        );
+        floating.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+        floating.scale = glm::vec3(0.2f, 0.2f, 0.2f);
+        floating.phase = i * 0.8f;
+        floating.frequency = 1.5f;
+        floating.amplitude = 0.3f;
+        floating.axis = glm::vec3(0.0f, 0.0f, 1.0f);
+        sculptureElements.push_back(floating);
+    }
+}
+
 // Process input
 void processInput(GLFWwindow* window)
 {
@@ -66,6 +273,31 @@ void processInput(GLFWwindow* window)
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    
+    // Kinetic sculpture controls
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+        isWindActive = !isWindActive;
+        windStrength = isWindActive ? 1.0f : 0.0f;
+    }
+    
+    if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
+        isUserControlled = !isUserControlled;
+    }
+    
+    // Adjust wind strength
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        windStrength = glm::clamp(windStrength + deltaTime, 0.0f, 2.0f);
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        windStrength = glm::clamp(windStrength - deltaTime, 0.0f, 2.0f);
+    }
+    
+    // User interaction
+    if (isUserControlled) {
+        userInteraction += deltaTime * 2.0f;
+    } else {
+        userInteraction = 0.0f;
+    }
 }
 
 // Mouse callback
@@ -217,10 +449,20 @@ int main()
 
     // Configure global OpenGL state
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Initialize kinetic sculpture
+    initializeKineticSculpture();
+
+    // Load parametric pattern model
+    if (!loadGLTFModel("resources/parametric_pattern_2.dxf/scene.gltf", parametricPattern)) {
+        std::cout << "Failed to load parametric pattern model, continuing without it..." << std::endl;
+    }
 
     // Load and compile shader program
-    std::string vertexShaderSource = loadShaderFromFile("resources/vs/kinetic_sculpture.vs");
-    std::string fragmentShaderSource = loadShaderFromFile("resources/fs/kinetic_sculpture.fs");
+    std::string vertexShaderSource = loadShaderFromFile("vs/kinetic_sculpture.vs");
+    std::string fragmentShaderSource = loadShaderFromFile("fs/kinetic_sculpture.fs");
     
     if (vertexShaderSource.empty() || fragmentShaderSource.empty())
     {
@@ -316,53 +558,122 @@ int main()
         // Camera/view transformation
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        
+        // Lighting setup
+        glm::vec3 lightPos = glm::vec3(2.0f, 4.0f, 2.0f);
+        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(cameraPos));
 
-        // Render multiple cubes for kinetic sculpture
+        // Render kinetic sculpture elements
         glBindVertexArray(VAO);
         
-        // Main rotating cube in center
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        model = glm::rotate(model, animationTime * rotationSpeed, glm::vec3(0.5f, 1.0f, 0.0f));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-
-        // Pendulum cubes
-        for (int i = 0; i < 4; ++i)
-        {
-            float angle = i * 90.0f; // 90 degrees apart
-            float pendulumAngle = sin(animationTime * pendulumFrequency) * glm::radians(pendulumAmplitude);
+        for (size_t i = 0; i < sculptureElements.size(); ++i) {
+            KineticElement& element = sculptureElements[i];
             
-            glm::mat4 pendulumModel = glm::mat4(1.0f);
-            pendulumModel = glm::translate(pendulumModel, glm::vec3(
-                cos(glm::radians(angle)) * 2.0f,
-                sin(pendulumAngle) * 0.5f,
-                sin(glm::radians(angle)) * 2.0f
-            ));
-            pendulumModel = glm::scale(pendulumModel, glm::vec3(0.5f, 0.5f, 0.5f));
-            pendulumModel = glm::rotate(pendulumModel, animationTime * rotationSpeed * 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
+            // Calculate dynamic position based on element type and animation
+            glm::vec3 dynamicPosition = element.position;
+            glm::vec3 dynamicRotation = element.rotation;
             
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(pendulumModel));
+            // Apply different animations based on element index
+            if (i == 0) {
+                // Central rotating element
+                dynamicRotation = glm::vec3(0.0f, animationTime * element.frequency, 0.0f);
+            } else if (i >= 1 && i <= 4) {
+                // Pendulum elements
+                float pendulumAngle = sin(animationTime * element.frequency + element.phase) * 
+                                    glm::radians(element.amplitude + windStrength * 10.0f);
+                dynamicPosition.y = sin(pendulumAngle) * 0.5f;
+                dynamicRotation = glm::vec3(pendulumAngle, animationTime * 0.5f, 0.0f);
+            } else if (i >= 5 && i <= 10) {
+                // Orbiting elements
+                float orbitAngle = animationTime * element.frequency + element.phase;
+                float radius = 3.0f + sin(animationTime * 2.0f) * element.amplitude + windStrength * 0.3f;
+                dynamicPosition = glm::vec3(
+                    cos(orbitAngle) * radius,
+                    sin(animationTime * 3.0f) * 0.3f + windStrength * 0.2f,
+                    sin(orbitAngle) * radius
+                );
+                dynamicRotation = glm::vec3(animationTime * 2.0f, orbitAngle, 0.0f);
+            } else {
+                // Floating elements
+                float floatAngle = animationTime * element.frequency + element.phase;
+                dynamicPosition += glm::vec3(
+                    sin(floatAngle) * element.amplitude,
+                    cos(floatAngle * 1.5f) * element.amplitude * 0.5f,
+                    cos(floatAngle) * element.amplitude * 0.3f
+                );
+                dynamicRotation = glm::vec3(
+                    animationTime * 1.5f,
+                    animationTime * 0.8f,
+                    animationTime * 2.2f
+                );
+            }
+            
+            // Apply user interaction effects
+            if (isUserControlled) {
+                float interactionEffect = sin(userInteraction) * 0.5f;
+                dynamicPosition += glm::vec3(interactionEffect, interactionEffect * 0.5f, interactionEffect * 0.3f);
+                dynamicRotation += glm::vec3(interactionEffect, interactionEffect, interactionEffect);
+            }
+            
+            // Create model matrix
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, dynamicPosition);
+            model = glm::rotate(model, dynamicRotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, dynamicRotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+            model = glm::rotate(model, dynamicRotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::scale(model, element.scale);
+            
+            // Apply wind effects
+            if (windStrength > 0.0f) {
+                float windEffect = sin(animationTime * 3.0f + i) * windStrength * 0.1f;
+                model = glm::rotate(model, windEffect, glm::vec3(0.0f, 1.0f, 0.0f));
+            }
+            
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        // Orbiting cubes
-        for (int i = 0; i < 6; ++i)
-        {
-            float angle = i * 60.0f + animationTime * rotationSpeed * 0.3f;
-            float radius = 3.0f + sin(animationTime * 2.0f) * 0.5f;
+        // Render parametric pattern as background/decoration
+        if (parametricPattern.loaded) {
+            std::cout << "Rendering parametric pattern..." << std::endl;
+            glBindVertexArray(parametricPattern.VAO);
             
-            glm::mat4 orbitModel = glm::mat4(1.0f);
-            orbitModel = glm::translate(orbitModel, glm::vec3(
-                cos(glm::radians(angle)) * radius,
-                sin(animationTime * 3.0f) * 0.3f,
-                sin(glm::radians(angle)) * radius
-            ));
-            orbitModel = glm::scale(orbitModel, glm::vec3(0.3f, 0.3f, 0.3f));
-            orbitModel = glm::rotate(orbitModel, animationTime * rotationSpeed * 2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-            
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(orbitModel));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            // Create multiple instances of the pattern with different animations
+            for (int i = 0; i < 3; ++i) {
+                glm::mat4 patternModel = glm::mat4(1.0f);
+                
+                // Position patterns around the sculpture
+                float angle = i * 120.0f + animationTime * 0.2f;
+                float radius = 4.0f + sin(animationTime * 1.5f) * 0.5f;
+                
+                patternModel = glm::translate(patternModel, glm::vec3(
+                    cos(glm::radians(angle)) * radius,
+                    sin(animationTime * 2.0f) * 0.3f,
+                    sin(glm::radians(angle)) * radius
+                ));
+                
+                // Rotate the pattern
+                patternModel = glm::rotate(patternModel, animationTime * 0.5f + i * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+                patternModel = glm::rotate(patternModel, sin(animationTime * 1.0f + i) * 0.3f, glm::vec3(1.0f, 0.0f, 0.0f));
+                
+                // Scale the pattern
+                float scale = 0.8f + sin(animationTime * 2.0f + i) * 0.2f;
+                patternModel = glm::scale(patternModel, glm::vec3(scale, scale, scale));
+                
+                // Apply wind effects
+                if (windStrength > 0.0f) {
+                    float windEffect = sin(animationTime * 3.0f + i) * windStrength * 0.2f;
+                    patternModel = glm::rotate(patternModel, windEffect, glm::vec3(0.0f, 0.0f, 1.0f));
+                }
+                
+                glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(patternModel));
+                glDrawElements(GL_LINES, parametricPattern.indices.size(), GL_UNSIGNED_INT, 0);
+            }
+        } else {
+            std::cout << "Parametric pattern not loaded!" << std::endl;
         }
 
         // Swap buffers and poll IO events
@@ -374,6 +685,13 @@ int main()
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
+    
+    // Cleanup GLTF model
+    if (parametricPattern.loaded) {
+        glDeleteVertexArrays(1, &parametricPattern.VAO);
+        glDeleteBuffers(1, &parametricPattern.VBO);
+        glDeleteBuffers(1, &parametricPattern.EBO);
+    }
 
     glfwTerminate();
     return 0;
