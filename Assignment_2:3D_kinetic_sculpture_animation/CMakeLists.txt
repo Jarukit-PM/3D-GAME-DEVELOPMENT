@@ -16,16 +16,17 @@ include_directories(${CMAKE_SOURCE_DIR}/common/include)
 # Add executable
 add_executable(Assignment_2_3D_kinetic_sculpture_animation main.cpp)
 
-# Add resources folder to make it visible in CMake extension
-file(GLOB_RECURSE RESOURCE_FILES 
-    "resources/*"
+# Add shader files only (not OBJ files)
+file(GLOB_RECURSE SHADER_FILES 
+    "resources/vs/*"
+    "resources/fs/*"
 )
 
-# Add resource files to the target (this makes them visible in CMake extension)
-target_sources(Assignment_2_3D_kinetic_sculpture_animation PRIVATE ${RESOURCE_FILES})
+# Add shader files to the target
+target_sources(Assignment_2_3D_kinetic_sculpture_animation PRIVATE ${SHADER_FILES})
 
 # Organize files in IDE
-source_group("Resources" FILES ${RESOURCE_FILES})
+source_group("Shaders" FILES ${SHADER_FILES})
 
 # Link libraries
 target_link_libraries(Assignment_2_3D_kinetic_sculpture_animation 

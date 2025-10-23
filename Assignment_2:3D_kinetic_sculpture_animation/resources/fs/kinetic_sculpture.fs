@@ -1,32 +1,30 @@
 #version 330 core
-in vec3 vertexColor;
+in vec2 TexCoord;
 in vec3 FragPos;
 in vec3 Normal;
 out vec4 FragColor;
 
+uniform sampler2D diffuseTex;
+uniform sampler2D cloudsTex;
+uniform sampler2D nightTex;
 uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform vec3 viewPos;
 
 void main()
 {
-    // Ambient lighting
-    float ambientStrength = 0.3;
-    vec3 ambient = ambientStrength * lightColor;
+    // Sample the diffuse texture
+    vec3 diffuseColor = texture(diffuseTex, TexCoord).rgb;
     
-    // Diffuse lighting
+    // Simple lighting
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
+    
+    // Ambient + diffuse lighting
+    vec3 ambient = 0.3 * lightColor;
     vec3 diffuse = diff * lightColor;
     
-    // Specular lighting
-    float specularStrength = 0.5;
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
-    vec3 specular = specularStrength * spec * lightColor;
-    
-    vec3 result = (ambient + diffuse + specular) * vertexColor;
+    vec3 result = (ambient + diffuse) * diffuseColor;
     FragColor = vec4(result, 1.0);
 }

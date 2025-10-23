@@ -11,6 +11,9 @@
 #include <map>
 #include <string>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "common.hpp"
 
 // Window dimensions
@@ -26,30 +29,30 @@ glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// Kinetic sculpture parameters
+// Earth parameters
 float animationTime = 0.0f;
-float rotationSpeed = 1.0f;
-float pendulumAmplitude = 30.0f;
-float pendulumFrequency = 2.0f;
+float rotationSpeed = 0.3f;
+float earthScale = 1.0f;
+bool isRotating = true;
+bool showWireframe = false;
 
-// Advanced kinetic sculpture parameters
-float windStrength = 0.0f;
-float userInteraction = 0.0f;
-bool isWindActive = false;
-bool isUserControlled = false;
+// Earth lighting parameters
+float lightIntensity = 1.0f;
+glm::vec3 sunPosition = glm::vec3(5.0f, 3.0f, 5.0f);
+glm::vec3 sunColor = glm::vec3(1.0f, 0.95f, 0.8f);
 
-// Sculpture components
-struct KineticElement {
-    glm::vec3 position;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-    float phase;
-    float frequency;
-    float amplitude;
-    glm::vec3 axis;
+// Earth structure
+struct EarthModel {
+    unsigned int VAO, VBO, EBO;
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+    unsigned int diffuseTexture;
+    unsigned int cloudsTexture;
+    unsigned int nightLightsTexture;
+    bool loaded;
 };
 
-std::vector<KineticElement> sculptureElements;
+EarthModel earth;
 
 // GLTF Model structure
 struct GLTFModel {
@@ -187,75 +190,126 @@ std::string loadShaderFromFile(const std::string& filePath)
     }
 }
 
-// Initialize kinetic sculpture elements
-void initializeKineticSculpture()
+// Forward declarations
+bool loadEarthModel(const std::string& objPath, EarthModel& model);
+void createFallbackEarth();
+unsigned int loadTexture(const char* path);
+void processFaceVertex(const std::string& vertex, std::vector<unsigned int>& posIndices, 
+                      std::vector<unsigned int>& texIndices, std::vector<unsigned int>& normIndices);
+
+// Initialize earth model
+void initializeEarth()
 {
-    sculptureElements.clear();
-    
-    // Central rotating element
-    KineticElement center;
-    center.position = glm::vec3(0.0f, 0.0f, 0.0f);
-    center.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-    center.scale = glm::vec3(1.0f, 1.0f, 1.0f);
-    center.phase = 0.0f;
-    center.frequency = 1.0f;
-    center.amplitude = 0.0f;
-    center.axis = glm::vec3(0.5f, 1.0f, 0.0f);
-    sculptureElements.push_back(center);
-    
-    // Pendulum elements
-    for (int i = 0; i < 4; ++i) {
-        KineticElement pendulum;
-        float angle = i * 90.0f;
-        pendulum.position = glm::vec3(
-            cos(glm::radians(angle)) * 2.0f,
-            0.0f,
-            sin(glm::radians(angle)) * 2.0f
-        );
-        pendulum.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-        pendulum.scale = glm::vec3(0.5f, 0.5f, 0.5f);
-        pendulum.phase = i * 0.5f;
-        pendulum.frequency = 2.0f;
-        pendulum.amplitude = 30.0f;
-        pendulum.axis = glm::vec3(1.0f, 0.0f, 0.0f);
-        sculptureElements.push_back(pendulum);
+    // Load earth model
+    if (!loadEarthModel("resources/23-earth_photorealistic_2k/Earth 2K.obj", earth)) {
+        std::cout << "Failed to load earth model, creating fallback sphere..." << std::endl;
+        // Create a simple sphere as fallback
+        createFallbackEarth();
     }
     
-    // Orbiting elements
-    for (int i = 0; i < 6; ++i) {
-        KineticElement orbit;
-        float angle = i * 60.0f;
-        orbit.position = glm::vec3(
-            cos(glm::radians(angle)) * 3.0f,
-            0.0f,
-            sin(glm::radians(angle)) * 3.0f
-        );
-        orbit.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-        orbit.scale = glm::vec3(0.3f, 0.3f, 0.3f);
-        orbit.phase = i * 0.3f;
-        orbit.frequency = 0.3f;
-        orbit.amplitude = 0.5f;
-        orbit.axis = glm::vec3(0.0f, 1.0f, 0.0f);
-        sculptureElements.push_back(orbit);
+    // Load textures
+    std::cout << "Loading textures..." << std::endl;
+    earth.diffuseTexture = loadTexture("resources/23-earth_photorealistic_2k/Textures/Diffuse_2K.png");
+    earth.cloudsTexture = loadTexture("resources/23-earth_photorealistic_2k/Textures/Clouds_2K.png");
+    earth.nightLightsTexture = loadTexture("resources/23-earth_photorealistic_2k/Textures/Night_lights_2K.png");
+    
+    // Check if textures loaded successfully
+    std::cout << "Diffuse texture ID: " << earth.diffuseTexture << std::endl;
+    std::cout << "Clouds texture ID: " << earth.cloudsTexture << std::endl;
+    std::cout << "Night lights texture ID: " << earth.nightLightsTexture << std::endl;
+    
+    if (earth.diffuseTexture == 0 || earth.cloudsTexture == 0 || earth.nightLightsTexture == 0) {
+        std::cout << "ERROR: Some textures failed to load!" << std::endl;
+    } else {
+        std::cout << "All textures loaded successfully!" << std::endl;
+    }
+}
+
+// Create a proper sphere for Earth
+void createFallbackEarth()
+{
+    std::vector<float> vertices;
+    std::vector<unsigned int> indices;
+    
+    int segments = 64;  // More segments for better quality
+    int rings = 32;     // More rings for better quality
+    
+    for (int i = 0; i <= rings; ++i) {
+        float phi = M_PI * i / rings;
+        for (int j = 0; j <= segments; ++j) {
+            float theta = 2.0f * M_PI * j / segments;
+            
+            float x = cos(theta) * sin(phi);
+            float y = cos(phi);
+            float z = sin(theta) * sin(phi);
+            
+            // Position
+            vertices.push_back(x);
+            vertices.push_back(y);
+            vertices.push_back(z);
+            
+            // UV coordinates for equirectangular mapping
+            // Convert spherical to UV coordinates
+            float u = 0.5f + atan2(z, x) / (2.0f * M_PI);
+            float v = 0.5f - asin(y) / M_PI;
+            
+            // Ensure UV coordinates are in [0, 1] range
+            u = fmod(u + 1.0f, 1.0f);
+            v = glm::clamp(v, 0.0f, 1.0f);
+            
+            vertices.push_back(u);
+            vertices.push_back(v);
+            
+            // Normal
+            vertices.push_back(x);
+            vertices.push_back(y);
+            vertices.push_back(z);
+        }
     }
     
-    // Floating elements
-    for (int i = 0; i < 8; ++i) {
-        KineticElement floating;
-        float angle = i * 45.0f;
-        floating.position = glm::vec3(
-            cos(glm::radians(angle)) * 1.5f,
-            sin(glm::radians(angle * 2)) * 0.5f,
-            sin(glm::radians(angle)) * 1.5f
-        );
-        floating.rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-        floating.scale = glm::vec3(0.2f, 0.2f, 0.2f);
-        floating.phase = i * 0.8f;
-        floating.frequency = 1.5f;
-        floating.amplitude = 0.3f;
-        floating.axis = glm::vec3(0.0f, 0.0f, 1.0f);
-        sculptureElements.push_back(floating);
+    for (int i = 0; i < rings; ++i) {
+        for (int j = 0; j < segments; ++j) {
+            int current = i * (segments + 1) + j;
+            int next = current + segments + 1;
+            
+            indices.push_back(current);
+            indices.push_back(next);
+            indices.push_back(current + 1);
+            
+            indices.push_back(current + 1);
+            indices.push_back(next);
+            indices.push_back(next + 1);
+        }
     }
+    
+    // Create OpenGL buffers
+    glGenVertexArrays(1, &earth.VAO);
+    glGenBuffers(1, &earth.VBO);
+    glGenBuffers(1, &earth.EBO);
+    
+    glBindVertexArray(earth.VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, earth.VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, earth.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // Normal attribute
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    
+    glBindVertexArray(0);
+    
+    earth.vertices = vertices;
+    earth.indices = indices;
+    earth.loaded = true;
 }
 
 // Process input
@@ -274,29 +328,43 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     
-    // Kinetic sculpture controls
+    // Earth controls
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        isWindActive = !isWindActive;
-        windStrength = isWindActive ? 1.0f : 0.0f;
+        isRotating = !isRotating;
     }
     
     if (glfwGetKey(window, GLFW_KEY_TAB) == GLFW_PRESS) {
-        isUserControlled = !isUserControlled;
+        showWireframe = !showWireframe;
     }
     
-    // Adjust wind strength
+    // Adjust light intensity
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        windStrength = glm::clamp(windStrength + deltaTime, 0.0f, 2.0f);
+        lightIntensity = glm::clamp(lightIntensity + deltaTime, 0.1f, 3.0f);
     }
     if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-        windStrength = glm::clamp(windStrength - deltaTime, 0.0f, 2.0f);
+        lightIntensity = glm::clamp(lightIntensity - deltaTime, 0.1f, 3.0f);
     }
     
-    // User interaction
-    if (isUserControlled) {
-        userInteraction += deltaTime * 2.0f;
-    } else {
-        userInteraction = 0.0f;
+    // Adjust earth size
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS) {
+        earthScale = glm::clamp(earthScale + deltaTime, 0.5f, 3.0f);
+    }
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS) {
+        earthScale = glm::clamp(earthScale - deltaTime, 0.5f, 3.0f);
+    }
+    
+    // Adjust sun position
+    if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS) {
+        sunPosition.x += deltaTime * 2.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+        sunPosition.x -= deltaTime * 2.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS) {
+        sunPosition.y += deltaTime * 2.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_H) == GLFW_PRESS) {
+        sunPosition.y -= deltaTime * 2.0f;
     }
 }
 
@@ -356,53 +424,221 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
         currentFov = 45.0f;
 }
 
-// Create a cube with colors
-std::vector<float> createColoredCube()
+// Function to load texture
+unsigned int loadTexture(const char* path)
 {
-    return {
-        // positions          // colors
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // green
-         0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f, // blue
-         0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f, // blue
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // yellow
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    
+    // Set texture parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    // Load image using stb_image
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(path, &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        GLenum format = GL_RGB;
+        if (nrChannels == 1)
+            format = GL_RED;
+        else if (nrChannels == 3)
+            format = GL_RGB;
+        else if (nrChannels == 4)
+            format = GL_RGBA;
+            
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        
+        std::cout << "Texture loaded successfully: " << path << std::endl;
+    }
+    else
+    {
+        std::cout << "Failed to load texture: " << path << std::endl;
+    }
+    stbi_image_free(data);
+    
+    return textureID;
+}
 
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // magenta
-         0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f, // cyan
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f, // gray
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // magenta
+// Helper function to process face vertex
+void processFaceVertex(const std::string& vertex, std::vector<unsigned int>& posIndices, 
+                      std::vector<unsigned int>& texIndices, std::vector<unsigned int>& normIndices)
+{
+    std::string pos, tex, norm;
+    
+    // Parse vertex indices
+    size_t slash1 = vertex.find('/');
+    size_t slash2 = vertex.find('/', slash1 + 1);
+    
+    if (slash1 != std::string::npos) {
+        pos = vertex.substr(0, slash1);
+        if (slash2 != std::string::npos) {
+            tex = vertex.substr(slash1 + 1, slash2 - slash1 - 1);
+            norm = vertex.substr(slash2 + 1);
+        } else {
+            tex = vertex.substr(slash1 + 1);
+        }
+    } else {
+        pos = vertex;
+    }
+    
+    posIndices.push_back(std::stoi(pos) - 1);
+    
+    if (!tex.empty()) {
+        texIndices.push_back(std::stoi(tex) - 1);
+    }
+    
+    if (!norm.empty()) {
+        normIndices.push_back(std::stoi(norm) - 1);
+    }
+}
 
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f, // gray
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // yellow
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // magenta
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f, // gray
-
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-         0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f, // blue
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // green
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // green
-         0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f, // cyan
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // green
-         0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f, // cyan
-         0.5f, -0.5f,  0.5f,  0.0f, 1.0f, 1.0f, // cyan
-        -0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // magenta
-        -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // red
-
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // yellow
-         0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 1.0f, // blue
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f, // white
-        -0.5f,  0.5f,  0.5f,  0.5f, 0.5f, 0.5f, // gray
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f  // yellow
-    };
+// Function to load OBJ model
+bool loadEarthModel(const std::string& objPath, EarthModel& model)
+{
+    std::ifstream file(objPath);
+    if (!file.is_open()) {
+        std::cout << "Failed to open OBJ file: " << objPath << std::endl;
+        return false;
+    }
+    
+    std::vector<glm::vec3> positions;
+    std::vector<glm::vec2> texCoords;
+    std::vector<glm::vec3> normals;
+    std::vector<unsigned int> posIndices, texIndices, normIndices;
+    
+    std::string line;
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        std::string type;
+        iss >> type;
+        
+        if (type == "v") {
+            glm::vec3 pos;
+            iss >> pos.x >> pos.y >> pos.z;
+            positions.push_back(pos);
+        }
+        else if (type == "vt") {
+            glm::vec2 tex;
+            iss >> tex.x >> tex.y;
+            texCoords.push_back(tex);
+        }
+        else if (type == "vn") {
+            glm::vec3 norm;
+            iss >> norm.x >> norm.y >> norm.z;
+            normals.push_back(norm);
+        }
+        else if (type == "f") {
+            std::vector<std::string> vertices;
+            std::string vertex;
+            while (iss >> vertex) {
+                vertices.push_back(vertex);
+            }
+            
+            // Handle both triangles (3 vertices) and quads (4 vertices)
+            if (vertices.size() >= 3) {
+                // Process first triangle
+                processFaceVertex(vertices[0], posIndices, texIndices, normIndices);
+                processFaceVertex(vertices[1], posIndices, texIndices, normIndices);
+                processFaceVertex(vertices[2], posIndices, texIndices, normIndices);
+                
+                // If quad, add second triangle
+                if (vertices.size() == 4) {
+                    processFaceVertex(vertices[0], posIndices, texIndices, normIndices);
+                    processFaceVertex(vertices[2], posIndices, texIndices, normIndices);
+                    processFaceVertex(vertices[3], posIndices, texIndices, normIndices);
+                }
+            }
+        }
+    }
+    file.close();
+    
+    // Debug output
+    std::cout << "OBJ loaded: " << positions.size() << " positions, " 
+              << texCoords.size() << " texture coords, " 
+              << normals.size() << " normals" << std::endl;
+    std::cout << "Indices: " << posIndices.size() << " pos, " 
+              << texIndices.size() << " tex, " 
+              << normIndices.size() << " norm" << std::endl;
+    
+    // Create vertices array
+    model.vertices.clear();
+    model.indices.clear();
+    
+    for (size_t i = 0; i < posIndices.size(); i++) {
+        // Position
+        glm::vec3 pos = positions[posIndices[i]];
+        model.vertices.push_back(pos.x);
+        model.vertices.push_back(pos.y);
+        model.vertices.push_back(pos.z);
+        
+        // Texture coordinates
+        if (i < texIndices.size() && texIndices[i] < texCoords.size()) {
+            glm::vec2 tex = texCoords[texIndices[i]];
+            model.vertices.push_back(tex.x);
+            model.vertices.push_back(tex.y);
+        } else {
+            // Fallback UV coordinates if not available in OBJ
+            glm::vec3 unit = glm::normalize(pos);
+            float u = 0.5f + atan2(unit.z, unit.x) / (2.0f * M_PI);
+            float v = 0.5f - asin(unit.y) / M_PI;
+            u = fmod(u + 1.0f, 1.0f);
+            v = glm::clamp(v, 0.0f, 1.0f);
+            model.vertices.push_back(u);
+            model.vertices.push_back(v);
+        }
+        
+        // Normal
+        if (i < normIndices.size() && normIndices[i] < normals.size()) {
+            glm::vec3 norm = normals[normIndices[i]];
+            model.vertices.push_back(norm.x);
+            model.vertices.push_back(norm.y);
+            model.vertices.push_back(norm.z);
+        } else {
+            model.vertices.push_back(0.0f);
+            model.vertices.push_back(0.0f);
+            model.vertices.push_back(1.0f);
+        }
+        
+        model.indices.push_back(i);
+    }
+    
+    // Create OpenGL buffers
+    glGenVertexArrays(1, &model.VAO);
+    glGenBuffers(1, &model.VBO);
+    glGenBuffers(1, &model.EBO);
+    
+    glBindVertexArray(model.VAO);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, model.VBO);
+    glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(float), 
+                 model.vertices.data(), GL_STATIC_DRAW);
+    
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, model.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.indices.size() * sizeof(unsigned int), 
+                 model.indices.data(), GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // Texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    // Normal attribute
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+    
+    glBindVertexArray(0);
+    
+    model.loaded = true;
+    std::cout << "Earth model loaded successfully with " << model.vertices.size()/8 
+              << " vertices and " << model.indices.size() << " indices" << std::endl;
+    
+    return true;
 }
 
 int main()
@@ -422,7 +658,7 @@ int main()
 #endif
 
     // Create window
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Assignment 2: 3D Kinetic Sculpture Animation", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Assignment 2: Earth 3D Model", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -452,17 +688,12 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Initialize kinetic sculpture
-    initializeKineticSculpture();
-
-    // Load parametric pattern model
-    if (!loadGLTFModel("resources/parametric_pattern_2.dxf/scene.gltf", parametricPattern)) {
-        std::cout << "Failed to load parametric pattern model, continuing without it..." << std::endl;
-    }
+    // Initialize earth model
+    initializeEarth();
 
     // Load and compile shader program
-    std::string vertexShaderSource = loadShaderFromFile("vs/kinetic_sculpture.vs");
-    std::string fragmentShaderSource = loadShaderFromFile("fs/kinetic_sculpture.fs");
+    std::string vertexShaderSource = loadShaderFromFile("resources/vs/kinetic_sculpture.vs");
+    std::string fragmentShaderSource = loadShaderFromFile("resources/fs/kinetic_sculpture.fs");
     
     if (vertexShaderSource.empty() || fragmentShaderSource.empty())
     {
@@ -511,24 +742,8 @@ int main()
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
-    // Set up vertex data and buffers
-    std::vector<float> cubeVertices = createColoredCube();
-
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, cubeVertices.size() * sizeof(float), cubeVertices.data(), GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // Color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    // Enable texture loading
+    stbi_set_flip_vertically_on_load(true);
 
     // Render loop
     while (!glfwWindowShouldClose(window))
@@ -559,121 +774,51 @@ int main()
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
         
-        // Lighting setup
-        glm::vec3 lightPos = glm::vec3(2.0f, 4.0f, 2.0f);
-        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
+        // Lighting setup for earth
+        glm::vec3 lightColor = sunColor * lightIntensity;
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(sunPosition));
         glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
         glUniform3fv(glGetUniformLocation(shaderProgram, "viewPos"), 1, glm::value_ptr(cameraPos));
 
-        // Render kinetic sculpture elements
-        glBindVertexArray(VAO);
-        
-        for (size_t i = 0; i < sculptureElements.size(); ++i) {
-            KineticElement& element = sculptureElements[i];
-            
-            // Calculate dynamic position based on element type and animation
-            glm::vec3 dynamicPosition = element.position;
-            glm::vec3 dynamicRotation = element.rotation;
-            
-            // Apply different animations based on element index
-            if (i == 0) {
-                // Central rotating element
-                dynamicRotation = glm::vec3(0.0f, animationTime * element.frequency, 0.0f);
-            } else if (i >= 1 && i <= 4) {
-                // Pendulum elements
-                float pendulumAngle = sin(animationTime * element.frequency + element.phase) * 
-                                    glm::radians(element.amplitude + windStrength * 10.0f);
-                dynamicPosition.y = sin(pendulumAngle) * 0.5f;
-                dynamicRotation = glm::vec3(pendulumAngle, animationTime * 0.5f, 0.0f);
-            } else if (i >= 5 && i <= 10) {
-                // Orbiting elements
-                float orbitAngle = animationTime * element.frequency + element.phase;
-                float radius = 3.0f + sin(animationTime * 2.0f) * element.amplitude + windStrength * 0.3f;
-                dynamicPosition = glm::vec3(
-                    cos(orbitAngle) * radius,
-                    sin(animationTime * 3.0f) * 0.3f + windStrength * 0.2f,
-                    sin(orbitAngle) * radius
-                );
-                dynamicRotation = glm::vec3(animationTime * 2.0f, orbitAngle, 0.0f);
-            } else {
-                // Floating elements
-                float floatAngle = animationTime * element.frequency + element.phase;
-                dynamicPosition += glm::vec3(
-                    sin(floatAngle) * element.amplitude,
-                    cos(floatAngle * 1.5f) * element.amplitude * 0.5f,
-                    cos(floatAngle) * element.amplitude * 0.3f
-                );
-                dynamicRotation = glm::vec3(
-                    animationTime * 1.5f,
-                    animationTime * 0.8f,
-                    animationTime * 2.2f
-                );
-            }
-            
-            // Apply user interaction effects
-            if (isUserControlled) {
-                float interactionEffect = sin(userInteraction) * 0.5f;
-                dynamicPosition += glm::vec3(interactionEffect, interactionEffect * 0.5f, interactionEffect * 0.3f);
-                dynamicRotation += glm::vec3(interactionEffect, interactionEffect, interactionEffect);
-            }
-            
-            // Create model matrix
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, dynamicPosition);
-            model = glm::rotate(model, dynamicRotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
-            model = glm::rotate(model, dynamicRotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
-            model = glm::rotate(model, dynamicRotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
-            model = glm::scale(model, element.scale);
-            
-            // Apply wind effects
-            if (windStrength > 0.0f) {
-                float windEffect = sin(animationTime * 3.0f + i) * windStrength * 0.1f;
-                model = glm::rotate(model, windEffect, glm::vec3(0.0f, 1.0f, 0.0f));
-            }
-            
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+        // Set wireframe mode if enabled
+        if (showWireframe) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        } else {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        // Render parametric pattern as background/decoration
-        if (parametricPattern.loaded) {
-            std::cout << "Rendering parametric pattern..." << std::endl;
-            glBindVertexArray(parametricPattern.VAO);
+        // Render earth
+        if (earth.loaded) {
+            // Bind textures first
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, earth.diffuseTexture);
+            glUniform1i(glGetUniformLocation(shaderProgram, "diffuseTex"), 0);
             
-            // Create multiple instances of the pattern with different animations
-            for (int i = 0; i < 3; ++i) {
-                glm::mat4 patternModel = glm::mat4(1.0f);
-                
-                // Position patterns around the sculpture
-                float angle = i * 120.0f + animationTime * 0.2f;
-                float radius = 4.0f + sin(animationTime * 1.5f) * 0.5f;
-                
-                patternModel = glm::translate(patternModel, glm::vec3(
-                    cos(glm::radians(angle)) * radius,
-                    sin(animationTime * 2.0f) * 0.3f,
-                    sin(glm::radians(angle)) * radius
-                ));
-                
-                // Rotate the pattern
-                patternModel = glm::rotate(patternModel, animationTime * 0.5f + i * 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-                patternModel = glm::rotate(patternModel, sin(animationTime * 1.0f + i) * 0.3f, glm::vec3(1.0f, 0.0f, 0.0f));
-                
-                // Scale the pattern
-                float scale = 0.8f + sin(animationTime * 2.0f + i) * 0.2f;
-                patternModel = glm::scale(patternModel, glm::vec3(scale, scale, scale));
-                
-                // Apply wind effects
-                if (windStrength > 0.0f) {
-                    float windEffect = sin(animationTime * 3.0f + i) * windStrength * 0.2f;
-                    patternModel = glm::rotate(patternModel, windEffect, glm::vec3(0.0f, 0.0f, 1.0f));
-                }
-                
-                glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(patternModel));
-                glDrawElements(GL_LINES, parametricPattern.indices.size(), GL_UNSIGNED_INT, 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, earth.cloudsTexture);
+            glUniform1i(glGetUniformLocation(shaderProgram, "cloudsTex"), 1);
+            
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, earth.nightLightsTexture);
+            glUniform1i(glGetUniformLocation(shaderProgram, "nightTex"), 2);
+            
+            // Create model matrix for earth
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+            
+            // Apply rotation if enabled
+            if (isRotating) {
+                model = glm::rotate(model, animationTime * rotationSpeed, glm::vec3(0.0f, 1.0f, 0.0f));
             }
-        } else {
-            std::cout << "Parametric pattern not loaded!" << std::endl;
+            
+            // Apply scaling
+            model = glm::scale(model, glm::vec3(earthScale, earthScale, earthScale));
+            
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+            
+            // Bind VAO and draw
+            glBindVertexArray(earth.VAO);
+            glDrawElements(GL_TRIANGLES, earth.indices.size(), GL_UNSIGNED_INT, 0);
         }
 
         // Swap buffers and poll IO events
@@ -682,16 +827,18 @@ int main()
     }
 
     // Cleanup
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    if (earth.loaded) {
+        glDeleteVertexArrays(1, &earth.VAO);
+        glDeleteBuffers(1, &earth.VBO);
+        glDeleteBuffers(1, &earth.EBO);
+        glDeleteTextures(1, &earth.diffuseTexture);
+        glDeleteTextures(1, &earth.cloudsTexture);
+        glDeleteTextures(1, &earth.nightLightsTexture);
+    }
     glDeleteProgram(shaderProgram);
     
-    // Cleanup GLTF model
-    if (parametricPattern.loaded) {
-        glDeleteVertexArrays(1, &parametricPattern.VAO);
-        glDeleteBuffers(1, &parametricPattern.VBO);
-        glDeleteBuffers(1, &parametricPattern.EBO);
-    }
+    // Reset polygon mode
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glfwTerminate();
     return 0;
